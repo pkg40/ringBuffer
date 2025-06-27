@@ -1,3 +1,26 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 Peter K Green (pkg40)
+ * Email: pkg40@yahoo.com
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #pragma once
 
 #if defined(ARDUINO) && ARDUINO >= 100
@@ -23,34 +46,33 @@ class ringBuffer {
     uint8_t _maxSize;
   public:
     ringBuffer();
-    bool push(T*, int=0);
-    bool pop(T &data);
+    bool push(const T&, int=0);
+    bool pop(T& data);
     bool isEmpty();
     bool isFull();
 };
 
 //* Start Simple Ring Buffer
-template <typename T, size_t sz> ringBuffer<T,sz>::ringBuffer(){
+template <typename T, size_t sz> 
+ringBuffer<T,sz>::ringBuffer(){
     _rdPtr=0;
     _wrPtr=0;
     _maxSize=0;
   }
   
-template <typename T, size_t sz> bool ringBuffer<T,sz>::isFull() { return(_maxSize == sz); }
+template <typename T, size_t sz>
+bool ringBuffer<T,sz>::isFull() { return(_maxSize == sz); }
   
 template <typename T, size_t sz> bool ringBuffer<T, sz>::isEmpty() { return(_maxSize == 0); }
   
-template <typename T, size_t sz> IRAM_ATTR  bool  ringBuffer<T, sz>::push(T* data, int verbose){
+template <typename T, size_t sz> IRAM_ATTR  bool  ringBuffer<T, sz>::push(const T& data, int verbose){
 //    bool verbose = false;
     if (isFull()) {if (verbose) Serial.println ("Queue is Full"); return false;}
     else {
       if (verbose) {
         Serial.printf ("line= -- %d\n", verbose);
-//        Serial.print("push data = "); 
-//        Serial.println(data); 
       }
-//      _buffer[_wrPtr]=*data;
-      memcpy(_buffer[_wrPtr], data, sizeof _buffer[_wrPtr]);
+      memcpy(&_buffer[_wrPtr], &data, sizeof _buffer[_wrPtr]);
       _wrPtr = (_wrPtr + 1)%sz;
       _maxSize++;
       return(true);
