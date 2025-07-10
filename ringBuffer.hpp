@@ -21,80 +21,40 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #pragma once
+#include <Arduino.h>
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <new>
+#include <utility>
+#include <stdexcept>
+#include <cstring>
 
-#if defined(ARDUINO) && ARDUINO >= 100
-	#include <Arduino.h>
-#else
-	#include <WProgram.h>
-#endif
-
-//#include <TRACE.h>
-
-//*------------------------------------------------------
-//* Simple Ring Buffer class 
-//*------------------------------------------------------
 template <typename T, size_t sz>
 class ringBuffer {
-    static_assert(sz > 0, "RingBuf with size 0 are forbidden");
-    static_assert(sz <= __UINT8_MAX__, "RingBuf with size greater than 2^8 (0xff) are forbidden");
-  private:
-//    T _buffer[sz];
-    uint8_t _buffer[sz][sizeof(T)];
-    uint8_t _rdPtr;
-    uint8_t _wrPtr;
-    uint8_t _maxSize;
-  public:
-    ringBuffer();
-    bool push(const T&, int=0);
-    bool pop(T& data);
-    bool isEmpty();
-    bool isFull();
+    static_assert(sz > 0, "ringBuffer size must be greater than 0");
+    static_assert((sz & (sz - 1)) == 0, "ringBuffer size must be a power of two");
+
+    alignas(T) uint8_t _buffer[sz][sizeof(T)];
+    uint8_t _rdPtr = 0;
+    uint8_t _wrPtr = 0;
+    uint8_t _count = 0;
+
+public:
+    ringBuffer() = default;
+    ~ringBuffer();
+
+    bool push(const T& data, bool verbose = false);
+    bool pop(T& out);
+    bool peek(T& out) const;
+    void clear();
+
+    bool isEmpty() const { return _count == 0; }
+    bool isFull() const { return _count == sz; }
+    size_t size() const { return _count; }
+    size_t capacity() const { return sz; }
 };
 
-//* Start Simple Ring Buffer
-template <typename T, size_t sz> 
-ringBuffer<T,sz>::ringBuffer(){
-    _rdPtr=0;
-    _wrPtr=0;
-    _maxSize=0;
-  }
-  
-template <typename T, size_t sz>
-bool ringBuffer<T,sz>::isFull() { return(_maxSize == sz); }
-  
-template <typename T, size_t sz> bool ringBuffer<T, sz>::isEmpty() { return(_maxSize == 0); }
-  
-template <typename T, size_t sz> IRAM_ATTR  bool  ringBuffer<T, sz>::push(const T& data, int verbose){
-//    bool verbose = false;
-    if (isFull()) {if (verbose) Serial.println ("Queue is Full"); return false;}
-    else {
-      if (verbose) {
-        Serial.printf ("line= -- %d\n", verbose);
-      }
-      memcpy(&_buffer[_wrPtr], &data, sizeof _buffer[_wrPtr]);
-      _wrPtr = (_wrPtr + 1)%sz;
-      _maxSize++;
-      return(true);
-    }
-};
-  
-template <typename T, size_t sz> bool  ringBuffer<T, sz>::pop(T& data){
-    bool verbose = false;
-    if (isEmpty()) { 
-      if (verbose) Serial.println ("Queue is empty"); 
-      return false;
-    }
-    else {
-      memcpy(&data, _buffer[_rdPtr], sizeof data);
-//      data = _buffer[_rdPtr];
-      _rdPtr = (_rdPtr + 1)%sz;
-      _maxSize--;
-      if (verbose) {
-        Serial.print("pop data = "); 
-//        Serial.println(data); 
-      }
-      return(true);
-    }
-};
-//* End Simple Ring Buffer
+#include <ringBuffer.ipp>
