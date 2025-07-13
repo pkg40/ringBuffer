@@ -1,3 +1,5 @@
+// NOTE: T must be trivially copyable and destructible, or the user must ensure correct construction and destruction.
+// This ringBuffer uses placement new and manual destructor calls. Using non-trivial types may cause undefined behavior if not handled carefully.
 template <typename T, size_t sz>
 ringBuffer<T, sz>::~ringBuffer() {
     clear();
@@ -7,7 +9,7 @@ template <typename T, size_t sz>
 bool ringBuffer<T, sz>::push(const T& data, bool verbose) {
     if (isFull()) {
         if (verbose) {
-            throw std::logic_error("ringBuffer is full");
+            Serial.println("[ringBuffer] Error: ringBuffer is full");
         }
         return false;
     }
