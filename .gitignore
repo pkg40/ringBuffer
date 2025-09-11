@@ -1,35 +1,88 @@
-# PlatformIO build and dependency files
-.pio/
-.pioenvs/
-.piolibdeps/
+# Build artifacts
+build/
+dist/
+*.bin
+*.elf
+*.hex
+*.map
+*.o
+*.obj
 
-# VS Code settings (optional - usually we ignore)
-.vscode/
+# GCC coverage files
+*.gcno
+*.gcda
+*.gcov
 
-# OS files
-.DS_Store
-Thumbs.db
+# Debug files
+*.dSYM/
 
 # IDE files
-*.sublime-*
+*.code-workspace
+.vscode/
 .idea/
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
 
 # Temporary files
 *.tmp
 *.temp
-*.log
-
-# Compiled binaries
-*.bin
-*.hex
-*.elf
-
-# Coverage reports
-coverage/
-*.gcno
-*.gcda
+temp/
+tmp/
 
 # Backup files
 *.bak
 *.backup
 *~
+
+# Node modules (if using any web tools)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Certificate files (security)
+*.pem
+*.key
+*.crt
+*.p12
+
+# Local configuration files that shouldn't be shared
+config_local.json
+secrets.h
+credentials.h
+
+# Documentation build
+docs/_build/
+.pio
