@@ -91,10 +91,11 @@ template<typename T, size_t sz> bool ringBuffer<T, sz>::pop(T& data, bool verbos
         return false;
     } else {
         memcpy(&data, _buffer[_rdPtr], sizeof data);
-#if (sz & sz - 1 == 0)
-        _rdPtr = (_rdPtr + 1) & (sz - 1);
-        else _rdPtr = (_rdPtr + 1) % sz;
-#endif
+        if (POWoTWO) {
+            _rdPtr = (_rdPtr + 1) & (sz - 1);
+        } else {
+            _rdPtr = (_rdPtr + 1) % sz;
+        }
         _maxSize--;
         return (true);
     }
