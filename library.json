@@ -1,7 +1,7 @@
 {
   "name": "ringBuffer",
-  "version": "1.5.0",
-  "description": "A robust, template-based ring buffer (circular buffer) implementation for Arduino and ESP32/ESP8266 platforms with comprehensive Unity testing",
+  "version": "1.5.2",
+  "description": "Template ring buffer for Arduino/ESP: aligned storage per slot, trivially-copyable T, optional critical sections, Unity tests",
   "keywords": ["ringbuffer", "circular buffer", "arduino", "embedded", "queue"],
   "authors": [
     {
@@ -28,5 +28,5 @@
       ".git/*"
     ]
   },
-  "documentation": "A robust, template-based ring buffer implementation with comprehensive Unity testing. Features: O(1) operations, compile-time sizing, Arduino framework compatibility, hardware-validated on ESP32/ESP8266."
+  "documentation": "O(1) FIFO, static storage, no heap in queue ops. T must be trivially copyable; aligned_storage per slot. Thread safety: ESP32 spinlock, ESP8266 noInterrupts; optional RINGBUFFER_DISABLE_THREAD_SAFETY. Embedded: IRAM_ATTR on push only (ESP32); avoid Serial/verbose in ISR; bounded critical section (~memcpy of T); pop/peek use caller stack for T. C++11+ type_traits. Unity tests in test/."
 }
