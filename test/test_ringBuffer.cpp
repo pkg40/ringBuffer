@@ -59,6 +59,65 @@ void test_full_and_empty_flags() {
     TEST_ASSERT_FALSE(buffer.isFull());
 }
 
+/* ---- v1.6.0 random-access slot API tests ---- */
+/* peekAt/pokeAt do not modify FIFO state, but tests use a separate instance to
+ * keep table-mode behavior cleanly isolated from FIFO-mode tests above. */
+
+ringBuffer<TestData, 8> slotBuffer;
+
+void test_pokeAt_and_peekAt() {
+    slotBuffer.clear();
+    TestData a = {11, 1.1f};
+    TestData b = {22, 2.2f};
+    TEST_ASSERT_TRUE(slotBuffer.pokeAt(0, a));
+    TEST_ASSERT_TRUE(slotBuffer.pokeAt(7, b));
+    TestData out;
+    TEST_ASSERT_TRUE(slotBuffer.peekAt(0, out));
+    TEST_ASSERT_EQUAL(11, out.id);
+    TEST_ASSERT_TRUE(slotBuffer.peekAt(7, out));
+    TEST_ASSERT_EQUAL(22, out.id);
+}
+
+void test_pokeAt_out_of_range() {
+    slotBuffer.clear();
+    TestData v = {1, 1.0f};
+    TEST_ASSERT_FALSE(slotBuffer.pokeAt(8, v));
+    TEST_ASSERT_FALSE(slotBuffer.pokeAt(255, v));
+    TestData out;
+    TEST_ASSERT_FALSE(slotBuffer.peekAt(8, out));
+}
+
+void test_pokeAt_does_not_change_size() {
+    slotBuffer.clear();
+    TEST_ASSERT_TRUE(slotBuffer.isEmpty());
+    TestData v = {99, 9.9f};
+    slotBuffer.pokeAt(3, v);
+    /* pokeAt must NOT advance _maxSize / push pointers */
+    TEST_ASSERT_TRUE(slotBuffer.isEmpty());
+    TEST_ASSERT_EQUAL(0u, slotBuffer.size());
+}
+
+void test_cursor_walk_and_reset() {
+    slotBuffer.clear();
+    for (uint8_t i = 0; i < 8; ++i) {
+        TestData v = {(int)i, (float)i};
+        slotBuffer.pokeAt(i, v);
+    }
+    slotBuffer.resetCursor();
+    TEST_ASSERT_EQUAL(0, slotBuffer.getCursor());
+    TestData out;
+    for (uint8_t i = 0; i < 8; ++i) {
+        TEST_ASSERT_TRUE(slotBuffer.readCursor(out));
+        TEST_ASSERT_EQUAL((int)i, out.id);
+    }
+    /* Wrapped back to 0 */
+    TEST_ASSERT_EQUAL(0, slotBuffer.getCursor());
+    slotBuffer.readCursor(out);
+    TEST_ASSERT_EQUAL(1, slotBuffer.getCursor());
+    slotBuffer.resetCursor();
+    TEST_ASSERT_EQUAL(0, slotBuffer.getCursor());
+}
+
 void setUp(void) {
     // Optional: runs before each test
 }
@@ -109,6 +168,10 @@ void loop() {
         RUN_TEST(test_peek);
         RUN_TEST(test_clear_and_reuse);
         RUN_TEST(test_full_and_empty_flags);
+        RUN_TEST(test_pokeAt_and_peekAt);
+        RUN_TEST(test_pokeAt_out_of_range);
+        RUN_TEST(test_pokeAt_does_not_change_size);
+        RUN_TEST(test_cursor_walk_and_reset);
         UNITY_END();
         
         // Blink 5 times after completing tests

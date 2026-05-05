@@ -109,6 +109,36 @@
  *   + read/write indices + occupancy count (uint8_t each)
  *   + ESP32: one portMUX_TYPE
  *
+ * RANDOM-ACCESS SLOT API (v1.6.0)
+ * ===============================
+ * For use cases that treat the underlying storage as an addressable array
+ * rather than a FIFO (e.g. a fixed table of stop positions, scratchpad slots),
+ * the following methods address slots directly:
+ *
+ *   bool peekAt(uint8_t slot, T& out) const;
+ *   bool pokeAt(uint8_t slot, const T& value);
+ *   bool readCursor(T& out);          // reads at _cursor then advances (wraps)
+ *   void resetCursor();               // _cursor = 0
+ *   uint8_t getCursor() const;        // current cursor position
+ *
+ * Safety: peekAt/pokeAt/cursor do NOT modify _rdPtr, _wrPtr, _maxSize, or the
+ * isFull/isEmpty state — the FIFO machinery is left untouched. They simply read
+ * or write a slot regardless of whether that slot is currently part of the
+ * "live" FIFO range.
+ *
+ * USE THOUGHTFULLY when mixing with FIFO ops on the same instance:
+ *   - pokeAt may overwrite a slot that the FIFO will later pop, returning
+ *     unexpected data to the FIFO consumer.
+ *   - peekAt may read a slot whose contents are stale (already popped) or not
+ *     yet pushed. The data is whatever was last written to that storage cell.
+ *   - The cursor is independent of rd/wr; advancing it does not consume FIFO
+ *     elements, and FIFO push/pop does not move it.
+ *
+ * For pure random-access table use (the intended downrigger stop-list pattern),
+ * simply never call push()/pop() on that instance and the FIFO state stays at
+ * zero — isEmpty() will keep reporting true, which is correct: the FIFO is
+ * empty, even though slots may be in use as a table.
+ *
  ************************************************************************************
  * Copyright (c)       2019-2025 Peter K Green            - pkg40@yahoo.com
  ************************************************************************************
@@ -230,6 +260,8 @@ class ringBuffer {
         volatile uint8_t _wrPtr;
         /** Number of elements currently stored (0 .. sz). When 0, empty; when sz, full. */
         volatile uint8_t _maxSize;
+        /** Independent cursor for the random-access slot API. Not touched by push/pop/peekAt/pokeAt. */
+        volatile uint8_t _cursor;
 
         RINGBUF_DECLARE_LOCK();
 
@@ -314,6 +346,32 @@ class ringBuffer {
          * Serialize with the same rules as other methods if producer is in ISR.
          */
         void clear();
+
+        /* ---- v1.6.0 random-access slot API (see banner: thoughtful mixing) ---- */
+
+        /**
+         * Read element at absolute slot index (0..sz-1). Does NOT update rd/wr/cursor.
+         * @return false if slot >= sz; true on copy success.
+         */
+        bool peekAt(uint8_t slot, T& out) const;
+
+        /**
+         * Write element at absolute slot index (0..sz-1). Does NOT update rd/wr/cursor or _maxSize.
+         * @return false if slot >= sz; true on copy success.
+         */
+        bool pokeAt(uint8_t slot, const T& value);
+
+        /**
+         * Read element at the cursor and advance the cursor (wraps at sz).
+         * Independent of rd/wr; intended for sequential walks of a slot table.
+         */
+        bool readCursor(T& out);
+
+        /** Reset cursor to slot 0. */
+        void resetCursor();
+
+        /** Current cursor slot (0..sz-1). */
+        uint8_t getCursor() const;
 };
 
 template<typename T, size_t sz>
@@ -321,6 +379,7 @@ ringBuffer<T, sz>::ringBuffer() {
     _rdPtr = 0;
     _wrPtr = 0;
     _maxSize = 0;
+    _cursor = 0;
 }
 
 template<typename T, size_t sz>
@@ -418,4 +477,66 @@ void ringBuffer<T, sz>::clear() {
     _rdPtr = 0;
     _wrPtr = 0;
     _maxSize = 0;
+}
+
+/* ---- v1.6.0 random-access slot API ---- */
+
+template<typename T, size_t sz>
+bool ringBuffer<T, sz>::peekAt(uint8_t slot, T& out) const {
+    if (slot >= sz) {
+        return false;
+    }
+#if !RINGBUFFER_DISABLE_THREAD_SAFETY && defined(ESP32)
+    ringBufCriticalGuard guard(const_cast<portMUX_TYPE*>(&_mux));
+#else
+    ringBufCriticalGuard guard;
+#endif
+    memcpy(&out, _cellPtr(slot), sizeof(T));
+    return true;
+}
+
+template<typename T, size_t sz>
+bool ringBuffer<T, sz>::pokeAt(uint8_t slot, const T& value) {
+    if (slot >= sz) {
+        return false;
+    }
+#if !RINGBUFFER_DISABLE_THREAD_SAFETY && defined(ESP32)
+    ringBufCriticalGuard guard(&_mux);
+#else
+    ringBufCriticalGuard guard;
+#endif
+    memcpy(_cellPtr(slot), &value, sizeof(T));
+    return true;
+}
+
+template<typename T, size_t sz>
+bool ringBuffer<T, sz>::readCursor(T& out) {
+#if !RINGBUFFER_DISABLE_THREAD_SAFETY && defined(ESP32)
+    ringBufCriticalGuard guard(&_mux);
+#else
+    ringBufCriticalGuard guard;
+#endif
+    memcpy(&out, _cellPtr(_cursor), sizeof(T));
+    _cursor = _nextIndex(_cursor);
+    return true;
+}
+
+template<typename T, size_t sz>
+void ringBuffer<T, sz>::resetCursor() {
+#if !RINGBUFFER_DISABLE_THREAD_SAFETY && defined(ESP32)
+    ringBufCriticalGuard guard(&_mux);
+#else
+    ringBufCriticalGuard guard;
+#endif
+    _cursor = 0;
+}
+
+template<typename T, size_t sz>
+uint8_t ringBuffer<T, sz>::getCursor() const {
+#if !RINGBUFFER_DISABLE_THREAD_SAFETY && defined(ESP32)
+    ringBufCriticalGuard guard(const_cast<portMUX_TYPE*>(&_mux));
+#else
+    ringBufCriticalGuard guard;
+#endif
+    return _cursor;
 }

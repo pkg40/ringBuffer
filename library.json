@@ -1,7 +1,7 @@
 {
   "name": "ringBuffer",
-  "version": "1.5.2",
-  "description": "Template ring buffer for Arduino/ESP: aligned storage per slot, trivially-copyable T, optional critical sections, Unity tests",
+  "version": "1.6.0",
+  "description": "Template ring buffer for Arduino/ESP: aligned storage per slot, trivially-copyable T, optional critical sections, FIFO + random-access slot API (peekAt/pokeAt/cursor), Unity tests",
   "keywords": ["ringbuffer", "circular buffer", "arduino", "embedded", "queue"],
   "authors": [
     {
